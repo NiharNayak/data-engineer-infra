@@ -1,9 +1,8 @@
-
-## 🧪 Take-Home Task: Real-Time Ingestion and Delivery Guarantee
+## 🧪 Take-Home Task: Real-Time Ingestion with Delivery Guarantees & Data Correction
 
 ### **Context:**
 
-You are working on a streaming data pipeline for ingesting real-time events (e.g., user activity logs) from a simulated source to a data warehouse or lake. You must build a pipeline that ensures **no data loss**, handles **late-arriving events**, and provides **at least-once delivery guarantees**.
+You’re designing a real-time ingestion pipeline to process user activity events from a simulated source. This pipeline must support **at-least-once delivery**, handle **late-arriving events**, and process **source-side deletions or invalidations**.
 
 ---
 
@@ -11,60 +10,80 @@ You are working on a streaming data pipeline for ingesting real-time events (e.g
 
 #### 1. **Simulate a Data Stream**
 
-* Create a producer that emits JSON records every second. Example schema:
+Build a producer that emits JSON records every second:
 
-  ```json
-  {
-    "event_id": "uuid",
-    "user_id": "user123",
-    "event_type": "click",
-    "event_time": "2025-07-30T12:00:00Z",
-    "received_time": "2025-07-30T12:00:03Z"
-  }
-  ```
-* Add logic to randomly delay **10% of the messages** (e.g., deliver them 30–60 seconds late).
+```json
+{
+  "event_id": "uuid",
+  "user_id": "user123",
+  "event_type": "click",
+  "event_time": "2025-07-30T12:00:00Z",
+  "received_time": "2025-07-30T12:00:03Z",
+  "is_valid": true
+}
+```
+
+##### Add the following behaviors:
+
+* Randomly **delay \~10%** of messages by 30–60 seconds.
+* For **5–10% of previously sent events**, emit a **"correction event"** after a short delay:
+
+  * **Either mark them as `is_valid: false`** to simulate logical deletion.
+  * Or emit a special **tombstone message** (if using Kafka-like systems) with just the `event_id`.
 
 ---
 
 #### 2. **Ingestion Pipeline**
 
-* Use any combination of tools you prefer (e.g., Kafka, Kinesis, Spark, Flink, Airbyte, custom Python/Go scripts).
-* Ingest the simulated data and write it into a destination layer (e.g., Postgres, Redshift, BigQuery, S3, or a warehouse of your choice).
+* Ingest the stream and write data into your target store (e.g., warehouse, lake, or DB).
+* Handle late-arriving data and ensure **correct event-time placement**.
+* Handle **updates/deletes** based on:
+
+  * A flag (`is_valid: false`)
+  * Or a tombstone event (depending on the ingestion tool).
 
 ---
 
-#### 3. **Guarantees & Validation**
+#### 3. **Guarantees & Data Validation**
 
-Implement the following:
+You must:
 
-* **At least-once delivery**: No message should be dropped. Duplicates are acceptable but must be handled.
-* **Late event handling**: Late-arriving events should be processed and stored **in the correct partition/window** based on `event_time`.
-* **Data completeness validation**: At the end of a run, provide a script or test to validate:
+* Ensure **at-least-once delivery**: no event loss, allow duplicates (with deduplication plan).
+* Ensure **late event correctness**: events land in the correct time partition.
+* **Handle deletions/invalidation**:
 
-  * No record is missing.
-  * All event\_ids are unique (or if duplicates exist, explain why and how you’d deduplicate).
-  * Total counts per minute match between producer and target.
+  * Mark or remove invalidated events from the target.
+  * Avoid reprocessing deleted data incorrectly.
+
+##### Include a validation step/script to:
+
+* Ensure no record is missing.
+* Ensure all corrections/deletes are reflected in the target.
+* Verify deduplication strategy or explain handling of duplicates.
 
 ---
 
 #### 4. **Bonus (Optional):**
 
-* Add simple **integration tests** for the pipeline, testing end-to-end ingestion, duplicates, and late arrivals.
-* Add **basic observability** (e.g., logs or a dashboard showing lag, count per minute, duplicates detected).
+* Add **integration tests** for:
+
+  * Ingestion
+  * Late data
+  * Deleted/invalidated events
+* Include a **brief observability/logging** approach: show metrics for late events, deletions, duplicates, ingestion lag.
 
 ---
 
 ### **Deliverables:**
 
-1. Source code (hosted in GitHub/GitLab or as a zip).
-2. A `README.md` with:
+1. Source code.
+2. `README.md` with:
 
-   * Setup and run instructions.
-   * Architecture summary (diagram optional).
-   * Tradeoffs and assumptions.
-   * How you would scale this for production (tools, patterns).
-3. \[Optional] Jupyter Notebook or python script with validation tests.
+   * Setup + run instructions.
+   * Design summary (tools, approach).
+   * Handling strategy for late data, duplicates, deletions.
+   * Scaling considerations for production.
 
 ---
 
-### **Time Expected:** \~4–6 hours (including bonus, optional)
+### **Expected Time Commitment:** 4–6 hours (including optional parts)
